@@ -7,6 +7,11 @@ STARTUP_TIMEOUT=${STARTUP_TIMEOUT:-20}
 DOCKER_DATA_ROOT=${DOCKER_DATA_ROOT:-/scratch/docker}
 
 sanitize_cgroups() {
+  # Skip cgroup sanitization for cgroup v2 (https://github.com/concourse/docker-image-resource/commit/a43ad7b03f)
+  if [ -e /sys/fs/cgroup/cgroup.controllers ]; then
+	return
+  fi
+
   mkdir -p /sys/fs/cgroup
   mountpoint -q /sys/fs/cgroup || \
     mount -t tmpfs -o uid=0,gid=0,mode=0755 cgroup /sys/fs/cgroup
@@ -45,7 +50,7 @@ sanitize_cgroups() {
     fi
   done
 
-  if ! test -e /sys/fs/cgroup/systemd ; then
+  if [ ! -e /sys/fs/cgroup/systemd ] && [ $(cat /proc/self/cgroup | grep '^1:name=openrc:' | wc -l) -eq 0 ]; then
     mkdir /sys/fs/cgroup/systemd
     mount -t cgroup -o none,name=systemd none /sys/fs/cgroup/systemd
   fi
@@ -105,6 +110,7 @@ start_docker() {
     declare -fx try_start
 
     if ! timeout ${STARTUP_TIMEOUT} bash -ce 'while true; do try_start && break; done'; then
+	  [ -f "$LOG_FILE" ] && cat "${LOG_FILE}"
       echo Docker failed to start within ${STARTUP_TIMEOUT} seconds.
       return 1
     fi
