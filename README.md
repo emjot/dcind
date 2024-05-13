@@ -47,11 +47,11 @@ published everyday to ensure OS packages are up to date.
 There are three kinds of tags being published, two rolling and one static.
 
 Rolling Tags:
-- `latest`: points to the latest image pushed which contains the latest versions of Docker and Docker-Compose
+- `latest`: points to the latest image pushed which contains the latest versions of Docker and Docker Compose
 - `DOCKER_VERSION`: This tag is the docker version (e.g. `20.10.6`) and is republished daily. Only the latest version of docker is republished. Older versions will become stale.
 
 Static Tag:
-- `DOCKER_VERSION-YYYYmmdd`: This tag is the docker version plus the date it was published. If you want to stay on a specific version of Docker + Docker-Compose then sticking to a particular daily build will meet your needs.
+- `DOCKER_VERSION-YYYYmmdd`: This tag is the docker version plus the date it was published. If you want to stay on a specific version of Docker + Docker Compose then sticking to a particular daily build will meet your needs.
 
 ## Example
 
@@ -111,7 +111,7 @@ Note that `docker-lib.sh` has bash dependencies, so it is important to use `bash
           docker images
 
           # Run the container with tests and its dependencies.
-          docker-compose -f code/example/integration.yml run tests
+          docker compose -f code/example/integration.yml run tests
 
           # Cleanup.
           # Not sure if this is required.

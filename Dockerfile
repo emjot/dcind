@@ -11,8 +11,6 @@ RUN apk --no-cache add \
     device-mapper \
     libffi-dev \
     openssl-dev \
-    py3-pip \
-    python3-dev \
     gcc \
     libc-dev \
     make \
@@ -23,7 +21,9 @@ RUN apk --no-cache add \
 RUN curl https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_VERSION}.tgz | tar zx && \
     mv /docker/* /bin/ && \
     chmod +x /bin/docker* && \
-    pip install docker-compose==${DOCKER_COMPOSE_VERSION} && \
+    mkdir -p /usr/local/lib/docker/cli-plugins && \
+    curl -SL https://github.com/docker/compose/releases/download/v${DOCKER_COMPOSE_VERSION}/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose && \
+    chmod +x /usr/local/lib/docker/cli-plugins/docker-compose && \
     rm -rf /root/.cache
 
 # Include functions to start/stop docker daemon
