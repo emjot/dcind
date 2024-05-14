@@ -1,65 +1,53 @@
 # This pipeline publishes and keeps the dcind image up to date
-#
 
 resources:
 - name: docker-release
   type: github-release
-  icon: docker
-  check_every: 1h
+  icon: github
+  check_every: 6h
   source:
     owner: moby
     repository: moby
-    access_token: ((github_access_token))
+    access_token: ((ci-gh-public-repo-read-token))
 
 - name: docker-compose-release
   type: github-release
-  icon: docker
-  check_every: 1h
+  icon: github
+  check_every: 6h
   source:
     owner: docker
     repository: compose
-    access_token: ((github_access_token))
-
-# - name: pipeline
-#   type: git
-#   icon: git
-#   check_every: 1h
-#   source:
-#     uri: https://github.com/taylorsilva/dcind
-#     paths: [pipeline.yml]
+    access_token: ((ci-gh-public-repo-read-token))
 
 - name: repo
   type: git
   icon: git
-  check_every: 1h
+  check_every: 30m
   source:
-    uri: https://github.com/taylorsilva/dcind
-    ignore_paths: [pipeline.yml, README.md, example.yml]
+    uri: https://github.com/emjot/dcind
+    ignore_paths: [pipeline.yml, README.md]
 
-- name: daily-rebuild
+- name: weekly-rebuild
   type: time
   icon: clock
   source:
+    days:
+      - Thursday
     start: 3:00 AM
     stop: 3:30 AM
+    location: Europe/Berlin
+    initial_version: true
 
 - name: dcind
   icon: docker
   type: registry-image
   source:
-    repository: taylorsilva/dcind
+    repository: emjotde/dcind
     tag: latest
     username: ((docker.username))
     password: ((docker.password))
 
 jobs:
-# - name: update-self
-#   plan:
-#   - get: pipeline
-#     trigger: true
-#   - set_pipeline: dcind
-#     file: pipeline/pipeline.yml
-
 - name: build-and-publish
   plan:
   - in_parallel:
@@ -71,7 +59,7 @@ jobs:
         globs: [none]
     - get: repo
       trigger: true
-    - get: daily-rebuild
+    - get: weekly-rebuild
       trigger: true
   - in_parallel:
     - load_var: docker-version
@@ -88,7 +76,7 @@ jobs:
       image_resource:
         type: registry-image
         source:
-          repository: vito/oci-build-task
+          repository: concourse/oci-build-task
       inputs:
       - name: repo
         path: .

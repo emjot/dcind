@@ -2,7 +2,7 @@
 
 Alpine based image that lets you run Docker inside a Concourse task. Task must have `privileged: true` for Docker to start.
 
-![build status](https://ci.taydev.net/api/v1/teams/main/pipelines/dcind/jobs/build-and-publish/badge) [Release Pipeline](https://ci.taydev.net/teams/main/pipelines/dcind)
+This is an updated fork of https://github.com/taylorsilva/dcind which (as of mid 2024) seems do be unmaintained and still used docker compose v1. Images are published to https://hub.docker.com/repository/docker/emjotde/dcind/.
 
 ## Usage
 
@@ -11,7 +11,7 @@ Use it in a task config:
 image_resource:
   type: registry-image
   source:
-    repository: taylorsilva/dcind
+    repository: emjotde/dcind
 ```
 
 Pull it in as a resource to use as a task image:
@@ -21,7 +21,7 @@ resoures:
   icon: docker
   type: registry-image
   source:
-    repository: taylorsilva/dcind
+    repository: emjotde/dcind
     tag: latest
 
 jobs:
@@ -34,29 +34,30 @@ jobs:
 
 Run it locally on your machine:
 ```
-$ docker run -it --privileged taylorsilva/dcind
+$ docker run -it --privileged emjotde/dcind
 Starting Docker...
 waiting for docker to come up...
 bash-5.1#
 ```
 
 ## Tags
+
 The Docker version is used to tag releases of the image. A new image is
-published everyday to ensure OS packages are up to date.
+published every week to ensure OS packages are up to date.
 
 There are three kinds of tags being published, two rolling and one static.
 
 Rolling Tags:
 - `latest`: points to the latest image pushed which contains the latest versions of Docker and Docker Compose
-- `DOCKER_VERSION`: This tag is the docker version (e.g. `20.10.6`) and is republished daily. Only the latest version of docker is republished. Older versions will become stale.
+- `DOCKER_VERSION`: This tag is the docker version (e.g. `20.10.6`) and is republished weekly. Only the latest version of docker is republished. Older versions will become stale.
 
 Static Tag:
-- `DOCKER_VERSION-YYYYmmdd`: This tag is the docker version plus the date it was published. If you want to stay on a specific version of Docker + Docker Compose then sticking to a particular daily build will meet your needs.
+- `DOCKER_VERSION-YYYYmmdd`: This tag is the docker version plus the date it was published. If you want to stay on a specific version of Docker + Docker Compose then sticking to a particular weekly build will meet your needs.
 
 ## Example
 
 Here is an example of a Concourse [job](https://concourse-ci.org/jobs.html)
-that uses `taylorsilva/dcind` image to run a bunch of containers in a task, and
+that uses `emjotde/dcind` image to run a bunch of containers in a task, and
 then runs the integration test suite. You can find a full version of this
 example in the [`example`](example) directory.
 
@@ -83,7 +84,7 @@ Note that `docker-lib.sh` has bash dependencies, so it is important to use `bash
       image_resource:
         type: docker-image
         source:
-          repository: amidos/dcind
+          repository: emjotde/dcind
       inputs:
       - name: code
       - name: redis
@@ -111,7 +112,7 @@ Note that `docker-lib.sh` has bash dependencies, so it is important to use `bash
           docker images
 
           # Run the container with tests and its dependencies.
-          docker compose -f code/example/integration.yml run tests
+          docker compose -f code/example/integration.yml run --rm tests
 
           # Cleanup.
           # Not sure if this is required.
