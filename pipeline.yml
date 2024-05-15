@@ -1,6 +1,22 @@
 # This pipeline publishes and keeps the dcind image up to date
+resource_types:
+- name: cogito
+  type: registry-image
+  check_every: 1h
+  source:
+    repository: pix4d/cogito
 
 resources:
+- name: github-status
+  type: cogito
+  icon: github
+  check_every: 1h
+  source:
+    context_prefix: 'concourse'
+    owner: emjot
+    repo: dcind
+    access_token: ((ci-gh-status-token))
+
 - name: docker-release
   type: github-release
   icon: github
@@ -66,6 +82,16 @@ jobs:
       file: docker-release/version
     - load_var: docker-compose-version
       file: docker-compose-release/version
+  - in_parallel:
+    - put: github-status
+      no_get: true
+      inputs: [ repo ]
+      params: { context: 'build', state: pending }
+    - put: github-status
+      no_get: true
+      inputs: [ repo ]
+      params: { context: 'publish', state: pending }
+
   - task: build-image
     privileged: true
     params:
@@ -84,6 +110,27 @@ jobs:
       - name: image
       run:
         path: build
+    on_success:
+      put: github-status
+      no_get: true
+      inputs: [ repo ]
+      params: { context: 'build', state: success }
+    on_failure:
+      put: github-status
+      no_get: true
+      inputs: [ repo ]
+      params: { context: 'build', state: failure }
+    on_error:
+      put: github-status
+      no_get: true
+      inputs: [ repo ]
+      params: { context: 'build', state: error }
+    on_abort:
+      put: github-status
+      no_get: true
+      inputs: [ repo ]
+      params: { context: 'build', state: error }
+
   - task: tags
     params:
       DOCKER_VERSION: ((.:docker-version))
@@ -101,8 +148,29 @@ jobs:
           - -c
           - |
             echo "${DOCKER_VERSION} ${DOCKER_VERSION}-$(date +%Y%m%d)" > tags/tags
+
   - put: dcind
     inputs: detect
     params:
       image: image/image.tar
       additional_tags: tags/tags
+    on_success:
+      put: github-status
+      no_get: true
+      inputs: [ repo ]
+      params: { context: 'publish', state: success }
+    on_failure:
+      put: github-status
+      no_get: true
+      inputs: [ repo ]
+      params: { context: 'publish', state: failure }
+    on_error:
+      put: github-status
+      no_get: true
+      inputs: [ repo ]
+      params: { context: 'publish', state: error }
+    on_abort:
+      put: github-status
+      no_get: true
+      inputs: [ repo ]
+      params: { context: 'publish', state: error }
