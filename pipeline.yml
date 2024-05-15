@@ -1,65 +1,69 @@
 # This pipeline publishes and keeps the dcind image up to date
-#
+resource_types:
+- name: cogito
+  type: registry-image
+  check_every: 1h
+  source:
+    repository: pix4d/cogito
 
 resources:
+- name: github-status
+  type: cogito
+  icon: github
+  check_every: 1h
+  source:
+    context_prefix: 'concourse'
+    owner: emjot
+    repo: dcind
+    access_token: ((ci-gh-status-token))
+
 - name: docker-release
   type: github-release
-  icon: docker
-  check_every: 1h
+  icon: github
+  check_every: 6h
   source:
     owner: moby
     repository: moby
-    access_token: ((github_access_token))
+    access_token: ((ci-gh-public-repo-read-token))
 
 - name: docker-compose-release
   type: github-release
-  icon: docker
-  check_every: 1h
+  icon: github
+  check_every: 6h
   source:
     owner: docker
     repository: compose
-    access_token: ((github_access_token))
-
-# - name: pipeline
-#   type: git
-#   icon: git
-#   check_every: 1h
-#   source:
-#     uri: https://github.com/taylorsilva/dcind
-#     paths: [pipeline.yml]
+    access_token: ((ci-gh-public-repo-read-token))
 
 - name: repo
   type: git
   icon: git
-  check_every: 1h
+  check_every: 30m
   source:
-    uri: https://github.com/taylorsilva/dcind
-    ignore_paths: [pipeline.yml, README.md, example.yml]
+    uri: https://github.com/emjot/dcind
+    ignore_paths: [pipeline.yml, README.md]
 
-- name: daily-rebuild
+- name: weekly-rebuild
   type: time
   icon: clock
   source:
+    days:
+      - Thursday
     start: 3:00 AM
     stop: 3:30 AM
+    location: Europe/Berlin
+    initial_version: true
 
 - name: dcind
   icon: docker
   type: registry-image
   source:
-    repository: taylorsilva/dcind
+    repository: emjotde/dcind
     tag: latest
     username: ((docker.username))
     password: ((docker.password))
 
 jobs:
-# - name: update-self
-#   plan:
-#   - get: pipeline
-#     trigger: true
-#   - set_pipeline: dcind
-#     file: pipeline/pipeline.yml
-
 - name: build-and-publish
   plan:
   - in_parallel:
@@ -71,13 +75,23 @@ jobs:
         globs: [none]
     - get: repo
       trigger: true
-    - get: daily-rebuild
+    - get: weekly-rebuild
       trigger: true
   - in_parallel:
     - load_var: docker-version
       file: docker-release/version
     - load_var: docker-compose-version
       file: docker-compose-release/version
+  - in_parallel:
+    - put: github-status
+      no_get: true
+      inputs: [ repo ]
+      params: { context: 'build', state: pending }
+    - put: github-status
+      no_get: true
+      inputs: [ repo ]
+      params: { context: 'publish', state: pending }
+
   - task: build-image
     privileged: true
     params:
@@ -88,7 +102,7 @@ jobs:
       image_resource:
         type: registry-image
         source:
-          repository: vito/oci-build-task
+          repository: concourse/oci-build-task
       inputs:
       - name: repo
         path: .
@@ -96,6 +110,27 @@ jobs:
       - name: image
       run:
         path: build
+    on_success:
+      put: github-status
+      no_get: true
+      inputs: [ repo ]
+      params: { context: 'build', state: success }
+    on_failure:
+      put: github-status
+      no_get: true
+      inputs: [ repo ]
+      params: { context: 'build', state: failure }
+    on_error:
+      put: github-status
+      no_get: true
+      inputs: [ repo ]
+      params: { context: 'build', state: error }
+    on_abort:
+      put: github-status
+      no_get: true
+      inputs: [ repo ]
+      params: { context: 'build', state: error }
+
   - task: tags
     params:
       DOCKER_VERSION: ((.:docker-version))
@@ -113,8 +148,29 @@ jobs:
           - -c
           - |
             echo "${DOCKER_VERSION} ${DOCKER_VERSION}-$(date +%Y%m%d)" > tags/tags
+
   - put: dcind
     inputs: detect
     params:
       image: image/image.tar
       additional_tags: tags/tags
+    on_success:
+      put: github-status
+      no_get: true
+      inputs: [ repo ]
+      params: { context: 'publish', state: success }
+    on_failure:
+      put: github-status
+      no_get: true
+      inputs: [ repo ]
+      params: { context: 'publish', state: failure }
+    on_error:
+      put: github-status
+      no_get: true
+      inputs: [ repo ]
+      params: { context: 'publish', state: error }
+    on_abort:
+      put: github-status
+      no_get: true
+      inputs: [ repo ]
+      params: { context: 'publish', state: error }
