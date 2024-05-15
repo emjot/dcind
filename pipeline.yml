@@ -132,14 +132,14 @@ jobs:
       params: { context: 'build', state: error }
 
   - task: tags
-    params:
-      DOCKER_VERSION: ((.:docker-version))
     config:
       platform: linux
       image_resource:
-        type: mock
+        type: registry-image
         source:
-          mirror_self: true
+          repository: busybox
+      params:
+        DOCKER_VERSION: ((.:docker-version))
       outputs:
       - name: tags
       run:
