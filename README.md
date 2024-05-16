@@ -2,6 +2,8 @@
 
 Alpine based image that lets you run Docker inside a Concourse task. Task must have `privileged: true` for Docker to start.
 
+![build status](https://concourse.emjot.de/api/v1/teams/emjot/pipelines/dcind/jobs/build-and-publish/badge) [Release Pipeline](https://concourse.emjot.de/teams/emjot/pipelines/dcind)
+
 This is an updated fork of https://github.com/taylorsilva/dcind which (as of mid 2024) seems do be unmaintained and still used docker compose v1. Images are published to https://hub.docker.com/repository/docker/emjotde/dcind/.
 
 ## Usage
