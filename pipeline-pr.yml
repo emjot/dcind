@@ -1,0 +1,136 @@
+# This pipeline publishes and keeps the dcind image up to date
+resource_types:
+- name: pull-request
+  type: docker-image
+  source:
+    repository: teliaoss/github-pr-resource
+
+resources:
+- name: docker-release
+  type: github-release
+  icon: github
+  check_every: 6h
+  source:
+    owner: moby
+    repository: moby
+    access_token: ((ci-gh-public-repo-read-token))
+
+- name: docker-compose-release
+  type: github-release
+  icon: github
+  check_every: 6h
+  source:
+    owner: docker
+    repository: compose
+    access_token: ((ci-gh-public-repo-read-token))
+
+- name: repo-pr
+  type: pull-request
+  icon: github
+  source:
+    repository: emjot/dcind
+    access_token: ((ci-gh-pr-token))
+    ignore_paths:
+      - "*.md"
+      - "pipeline*.yml"
+
+jobs:
+- name: build-and-test
+  plan:
+  - in_parallel:
+    - get: docker-release
+      params:
+        globs: [none]
+    - get: docker-compose-release
+      params:
+        globs: [none]
+    - get: repo-pr
+      trigger: true
+  - in_parallel:
+    - load_var: docker-version
+      file: docker-release/version
+    - load_var: docker-compose-version
+      file: docker-compose-release/version
+  - in_parallel:
+    - put: repo-pr
+      params: { path: repo-pr, context: 'build', status: pending }
+    - put: repo-pr
+      params: { path: repo-pr, context: 'test', status: pending }
+
+  - task: build-image
+    privileged: true
+    params:
+      BUILD_ARG_DOCKER_VERSION: ((.:docker-version))
+      BUILD_ARG_DOCKER_COMPOSE_VERSION: ((.:docker-compose-version))
+      UNPACK_ROOTFS: true
+    config:
+      platform: linux
+      image_resource:
+        type: registry-image
+        source:
+          repository: concourse/oci-build-task
+      inputs:
+      - name: repo-pr
+        path: .
+      outputs:
+      - name: image
+      run:
+        path: build
+    on_success:
+      put: repo-pr
+      params: { path: repo-pr, context: 'build', status: success }
+    on_failure:
+      put: repo-pr
+      params: { path: repo-pr, context: 'build', status: failure }
+    on_error:
+      put: repo-pr
+      params: { path: repo-pr, context: 'build', status: error }
+    on_abort:
+      put: repo-pr
+      params: { path: repo-pr, context: 'build', status: error }
+
+  - task: test
+    privileged: true
+    image: image
+    config:
+      platform: linux
+      run:
+        path: bash
+        args:
+          - -exc
+          - |
+            source /docker-lib.sh
+            start_docker
+
+            docker images
+
+            cat >docker-compose.test.yml <<EOL
+            services:
+              my-test-service:
+                image: busybox
+                command: sh -exc 'echo "Success"'
+                volumes:
+                  - foo:/foo
+            volumes:
+              foo:
+            EOL
+
+            docker compose -f docker-compose.test.yml --project-name dcind-test run --rm my-test-service
+            docker compose -f docker-compose.test.yml --project-name dcind-test down
+
+            # Cleanup.
+            # Not sure if this is required.
+            # It's quite possible that Concourse is smart enough to clean up the Docker mess itself.
+            docker volume rm $(docker volume ls -q)
+    on_success:
+      put: repo-pr
+      params: { path: repo-pr, context: 'test', status: success }
+    on_failure:
+      put: repo-pr
+      params: { path: repo-pr, context: 'test', status: failure }
+    on_error:
+      put: repo-pr
+      params: { path: repo-pr, context: 'test', status: error }
+    on_abort:
+      put: repo-pr
+      params: { path: repo-pr, context: 'test', status: error }
