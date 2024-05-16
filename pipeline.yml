@@ -41,7 +41,7 @@ resources:
   check_every: 30m
   source:
     uri: https://github.com/emjot/dcind
-    ignore_paths: [pipeline.yml, README.md]
+    ignore_paths: [pipeline.yml, pipeline-pr.yml, README.md]
 
 - name: weekly-rebuild
   type: time
