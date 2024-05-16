@@ -90,6 +90,10 @@ jobs:
     - put: github-status
       no_get: true
       inputs: [ repo ]
+      params: { context: 'test', state: pending }
+    - put: github-status
+      no_get: true
+      inputs: [ repo ]
       params: { context: 'publish', state: pending }
 
   - task: build-image
@@ -97,6 +101,7 @@ jobs:
     params:
       BUILD_ARG_DOCKER_VERSION: ((.:docker-version))
       BUILD_ARG_DOCKER_COMPOSE_VERSION: ((.:docker-compose-version))
+      UNPACK_ROOTFS: true
     config:
       platform: linux
       image_resource:
@@ -130,6 +135,60 @@ jobs:
       no_get: true
       inputs: [ repo ]
       params: { context: 'build', state: error }
+
+  - task: test
+    privileged: true
+    image: image
+    config:
+      platform: linux
+      run:
+        path: bash
+        args:
+          - -exc
+          - |
+            source /docker-lib.sh
+            start_docker
+
+            docker images
+
+            cat >docker-compose.test.yml <<EOL
+            services:
+              my-test-service:
+                image: busybox
+                command: sh -exc 'echo "Success"'
+                volumes:
+                  - foo:/foo
+            volumes:
+              foo:
+            EOL
+
+            docker compose -f docker-compose.test.yml --project-name dcind-test run --rm my-test-service
+            docker compose -f docker-compose.test.yml --project-name dcind-test down
+
+            # Cleanup.
+            # Not sure if this is required.
+            # It's quite possible that Concourse is smart enough to clean up the Docker mess itself.
+            docker volume rm $(docker volume ls -q)
+    on_success:
+      put: github-status
+      no_get: true
+      inputs: [ repo ]
+      params: { context: 'test', state: success }
+    on_failure:
+      put: github-status
+      no_get: true
+      inputs: [ repo ]
+      params: { context: 'test', state: failure }
+    on_error:
+      put: github-status
+      no_get: true
+      inputs: [ repo ]
+      params: { context: 'test', state: error }
+    on_abort:
+      put: github-status
+      no_get: true
+      inputs: [ repo ]
+      params: { context: 'test', state: error }
 
   - task: tags
     config:
