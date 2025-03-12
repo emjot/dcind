@@ -60,8 +60,8 @@ resources:
   source:
     repository: emjotde/dcind
     tag: latest
-    username: ((docker.username))
-    password: ((docker.password))
+    username: ((docker/username))
+    password: ((docker/password))
 
 jobs:
 - name: build-and-publish
