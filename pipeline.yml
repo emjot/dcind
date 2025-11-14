@@ -24,6 +24,7 @@ resources:
   source:
     owner: moby
     repository: moby
+    tag_filter: "(?:docker-)?(?:v)?([^v].*)"
     access_token: ((ci-gh-public-repo-read-token))
 
 - name: docker-compose-release
