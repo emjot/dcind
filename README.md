@@ -18,7 +18,7 @@ image_resource:
 
 Pull it in as a resource to use as a task image:
 ```yaml
-resoures:
+resources:
 - name: dcind
   icon: docker
   type: registry-image
