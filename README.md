@@ -84,7 +84,7 @@ Note that `docker-lib.sh` has bash dependencies, so it is important to use `bash
     config:
       platform: linux
       image_resource:
-        type: docker-image
+        type: registry-image
         source:
           repository: emjotde/dcind
       inputs:
